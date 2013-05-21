@@ -9,7 +9,29 @@ body
     text-align: center;    
 }
 
+.ui-content
+{
+  padding-left:  15px;
+  padding-right: 15px;
+  padding-top:   5px;
+}
+
 .err
 {
     color: red;
+}
+
+.badcategory
+{
+  color: red;
+}
+
+.mediumcategory
+{
+  color: orange;   
+}
+
+.goodcategory
+{
+  color: green;   
 }
