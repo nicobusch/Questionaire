@@ -10,13 +10,50 @@ ko.bindingHandlers.jqmChecked = {
             var checkbox = $(element).parents()
                                      .andSelf()
                                      .filter("input[type='checkbox']");
- 
+
             if (checkbox) {
               try {
                 $(checkbox).checkboxradio('refresh');
                 } catch (e) {
                   }
               }
+        
+    }
+};
+
+
+// Custom bindings
+ko.virtualElements.allowedBindings.jqmforeach = true;
+ko.bindingHandlers.jqmforeach = {
+    init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+        return ko.bindingHandlers['foreach']['init'](element, valueAccessor, allBindingsAccessor, viewModel, bindingContext);
+    },
+    update: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+        var output = ko.bindingHandlers['foreach']['update'](element, valueAccessor, allBindingsAccessor, viewModel, bindingContext);
+        
+        // locate the listview
+        var listview = $(element).children()
+                                 .andSelf()
+                                 .filter("[data-role='listview']");
+ 
+        if (listview) {
+           try {
+               $(listview).listview('refresh');
+               } catch (e) {
+                 }
+        }
+        
+        var checkbox = $(element).children()
+                                 .andSelf()
+                                 .filter("input[type='checkbox']");
+ 
+        if (checkbox) {
+           try {
+               $(checkbox).checkboxradio('refresh');
+               } catch (e) {
+                 }
+        }
+        return output;
     }
 };
 
@@ -37,10 +74,16 @@ function Category(letter, name, score) {
 };
 
 function Question(identifier, category, text, agreed) {
+    var self = this;
     this.identifier = identifier;
     this.category = category;
-    this.text = text;
-    this.agreed = agreed;
+    this.statement = ko.observable(text);
+    this.agreed = ko.observable(agreed);
+    this.uiAgreeToggle = function() {
+     // First change the observable, then update the score
+     self.agreed(!self.agreed());
+     questionManager.updateScore(self.category, self.agreed());
+    }
 };
 
 // Manager
@@ -51,7 +94,8 @@ function QuestionManager()
     // Give a list of alarms
     // Repeat array is ordered monday to sunday
     this.questionList = ([new Question(1, "A", "Our team lacks leadership.", false),
-                          new Question(2, "B", "Decisions seem to be forced upon us.", false)]);
+                          new Question(2, "B", "Decisions seem to be forced upon us.", false),
+                          new Question(3, "B", "This is a third statement.", false)]);
     
     this.categoryList = ([new Category("A", "Balanced roles", 0),
                           new Category("B", "Clear objectives and agreed goals", 0),
@@ -66,6 +110,7 @@ function QuestionManager()
                           new Category("K", "Good communications", 0),
                           new Category("L", "Organisational support", 0)]);
      
+    this.questionsPerPage = 2;
       
     this.getCategoryList = function() {
       return this.categoryList;
@@ -108,35 +153,15 @@ function QuestionManager()
        }
        
        for (var index = 0; index < this.questionList.length; ++index) {             
-          this.questionList[index].agreed = false;  
+          this.questionList[index].agreed(false);  
        }
     }
-    this.toggleAgreed = function(id, agreed) {
-      var found = false;
-        
-      for (var index = 0; (index < this.questionList.length && found == false); ++index) {
-        if (id == this.questionList[index].identifier)
-          {
-          
-          if (this.questionList[index].agreed != agreed)
-            {
-            this.questionList[index].agreed = agreed;
-            // Now update the score for the appropriate category...
-            this.updateScore(this.questionList[index].category, agreed);
-            }
-          found = true;
-          }
-        }    
-      };
     
-    this.getQuestion = function(id)
+    this.getQuestionSet = function(id)
       {
-      for (var index = 0; (index < this.questionList.length); ++index) {
-        if (id == this.questionList[index].identifier)
-          {
-          return this.questionList[index];
-          }
-        } 
+      var questionStart = id * this.questionsPerPage;
+      var questionEnd   = (id+1) * this.questionsPerPage;
+      return this. questionList.slice(questionStart, questionEnd);
       };
   };
 
@@ -144,17 +169,19 @@ function QuestionManager()
 function QuestionViewModel() {
     // Properties
     this.template = "questions";
-    this.id = ko.observable(1);
-    this.statement = ko.observable("");
-    this.agreed = ko.observable(false);
-    this.questionNo = ko.computed(function() {
-        return "Question " + this.id() + " of " + questionManager.questionList.length;
+    this.questions = ko.observableArray();
+    this.pageId = ko.observable(1);
+    this.pageHeader = ko.computed(function() {
+        var numberOfPages = Math.ceil(questionManager.questionList.length / questionManager.questionsPerPage);
+        var displayId = this.pageId() + 1;
+        return "Page " + displayId + " of " 
+               + numberOfPages;
     }, this);
        
     // Interface
-    this.loadNewQuestion = function(getNextNotPrevious) {
+    this.loadNewQuestions = function(getNextNotPrevious) {
       // Get the next question from the question manager & assign stuff
-      var nextId = this.id();
+      var nextId = this.pageId();
       if (getNextNotPrevious)
         {
         nextId++;   
@@ -164,31 +191,31 @@ function QuestionViewModel() {
         nextId--;   
         }
       
-      this.id(nextId);
-      var newQuestion = questionManager.getQuestion(this.id());
-      this.statement(newQuestion.text);
-      this.agreed(newQuestion.agreed);
+      this.pageId(nextId);
+      this.questions(questionManager.getQuestionSet(nextId));
       };
     
    
     this.initialise = function() {
-        this.id(0)
-        this.loadNewQuestion(true);
+        
+        this.pageId(-1)
+        this.loadNewQuestions(true);
+        try {
+          $( "#questions").page( "destroy" ).page(); 
+        }
+        catch (e)
+        {
+        }
     };
     
-    this.uiAgreeToggle = function() {
-     var tempAgreed = this.agreed();
-     this.agreed(tempAgreed==false);
-    }
-    this.nextPressed = function() {
-      // Toggle the agreed so that the manager is update...
-      questionManager.toggleAgreed(this.id(), this.agreed());
-        
+    this.nextPressed = function() {       
       // Are there more questions?
-      if (this.id() < questionManager.questionList.length)
+      var numberOfPages = Math.ceil(questionManager.questionList.length / questionManager.questionsPerPage) ;
+      if (this.pageId() < numberOfPages - 1)
         {
         // If so, load it / update state of the question...
-        this.loadNewQuestion(true);
+        this.loadNewQuestions(true);
+        $( "#questions").page( "destroy" ).page(); 
         }
       else
         {
@@ -198,15 +225,13 @@ function QuestionViewModel() {
         }
     };
     
-    this.previousPressed = function() {
-      // Toggle the agreed so that the manager is update...
-      questionManager.toggleAgreed(this.id, this.agreed());
-        
+    this.previousPressed = function() {       
       // Is there an earlier question?
-      if (this.id() > 1)
+      if (this.pageId() > 0)
         {
         // If so, load it / update current state...
-        this.loadNewQuestion(false);
+        this.loadNewQuestions(false);
+        $( "#questions").page( "destroy" ).page(); 
         }
       else
         {
