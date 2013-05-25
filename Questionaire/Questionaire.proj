@@ -12,6 +12,8 @@
     <iOSStatusBarStyle>Default</iOSStatusBarStyle>
     <AndroidHardwareAcceleration>false</AndroidHardwareAcceleration>
     <iOSDeviceFamily>1</iOSDeviceFamily>
+    <iOSBackgroundMode>
+    </iOSBackgroundMode>
   </PropertyGroup>
   <ItemGroup>
     <Folder Include="App_Resources" />
