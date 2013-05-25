@@ -246,12 +246,40 @@ function ResultsViewModel() {
   // It is responsible for getting the list of alarms from the alarm manager
   this.template = "results";
   this.categories = ko.observableArray(questionManager.getSortedCategories());
-    
+  
   this.refresh = function () {
     // Get a list from the alarm manager, assign it to the observable array
     this.categories(questionManager.getSortedCategories());
   };
-    
+  
+  this.numberOfReds = 1;
+  this.isBadCategory = function(categoryLetter) {
+   return this.isCategoryInRange(0, this.numberOfReds, categoryLetter);
+  }
+
+  this.numberOfOranges = 1;
+  this.isMediumCategory = function(categoryLetter) {
+   return this.isCategoryInRange(this.numberOfReds, this.numberOfOranges + this.numberOfReds, categoryLetter);
+  }
+
+  this.isGoodCategory = function(categoryLetter) {
+   return this.isCategoryInRange(this.numberOfOranges + this.numberOfReds, this.categories().length, categoryLetter);
+  }
+  
+  this.isCategoryInRange = function(start, end, categoryLetter)
+  {
+  var returnValue = false;
+   
+   for (var index = start; index < end; ++index) {             
+     if (this.categories()[index].letter == categoryLetter)
+     {
+     returnValue = true;
+     break;
+     }
+   }
+      
+   return returnValue;   
+  }
   this.homePressed = function() {
     // Reset the score and change the page
     $.mobile.changePage("#home");

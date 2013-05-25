@@ -83,10 +83,11 @@
       <th align="left">Score</th>
     </tr>
   </thead>
-  <tbody data-bind="foreach: categories">
-      <tr data-bind=""css: { badcategory: true }"">
-      <td data-bind="text: name"></td>
-      <td data-bind="text: score"></td>
+  <tbody data-bind="foreach: { data: categories, as: 'category' }">
+      <tr data-bind="css: { badcategory:  $parent.isBadCategory(category.letter), 
+                            mediumcategory: $parent.isMediumCategory(category.letter),
+                            goodcategory: $parent.isGoodCategory(category.letter)}">
+      <td data-bind="text: name"></td><td data-bind="text: score"></td>
       </tr>
     </tbody>
 </table>
